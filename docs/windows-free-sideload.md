@@ -4,10 +4,10 @@
 
 ## 1. 构建真机 IPA
 
-1. 在 GitHub Actions 打开 `iOS build, tests & unsigned device IPA` 工作流，使用 `feat/ios-mvp-v0.1` 分支。
-2. 等待任务完成，找到 Artifacts → `What2Eat-unsigned-iPhone`，下载 ZIP 并解压出 `What2Eat-unsigned-iphoneos.ipa`。
-3. 本 IPA 通过 `xcodebuild -sdk iphoneos CODE_SIGNING_ALLOWED=NO` 编译，目标为 iPhone ARM64，**不是可以双击直接安装的已签名包**。
-4. 此 IPA 仍包含项目要求的 HealthKit 能力配置，但是否保留到签名后的安装包，取决于 Apple 签发的 Provisioning Profile 与侧载工具重签结果。
+1. 在 GitHub Actions 打开 `iOS build, tests & Windows sideload IPA` 工作流，使用 `feat/ios-mvp-v0.1` 分支。
+2. 等待任务完成，找到 Artifacts → `What2Eat-Windows-sideload`，下载 ZIP 并解压出 `What2Eat-re-sign-on-Windows.ipa`。
+3. 本 IPA 通过 `xcodebuild -sdk iphoneos CODE_SIGNING_ALLOWED=NO` 编译 Release 版，目标为 iPhone ARM64，再添加 **临时 ad-hoc 签名**保存所请求的 HealthKit entitlement；这不是 Apple 认可的签名，**不能直接安装**。
+4. 该临时 ad-hoc 签名只表示“请求 HealthKit”而不是“获得授权”。是否能在 Windows 重签时保留到最终安装包，取决于 Apple 签发的 Provisioning Profile 与侧载工具重签结果。
 
 ## 2. Windows 安装
 
