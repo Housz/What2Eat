@@ -1,0 +1,15 @@
+.DS_Store
+.swiftpm/
+.build/
+**/.build/
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+What2Eat.xcodeproj/
+What2Eat/Info.generated.plist
+What2Eat/What2Eat.entitlements
+xcodebuild.log
+.env
+.env.*
+*.p12
+*.mobileprovision

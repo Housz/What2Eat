@@ -1,0 +1,90 @@
+name: iOS build, tests & Windows sideload IPA
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Test pure Swift calorie flow
+        run: swift test --package-path packages/CalorieCore
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Compile iOS simulator application (no signing needed)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project What2Eat.xcodeproj \
+            -scheme What2Eat \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee xcodebuild.log
+      - name: Compile iPhone Release app (without Apple Team signing)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project What2Eat.xcodeproj \
+            -scheme What2Eat \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/What2EatDevice" \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee xcodebuild-device.log
+      - name: Add replaceable ad-hoc entitlement template and package IPA
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/What2EatDevice/Build/Products/Release-iphoneos/What2Eat.app"
+          test -d "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "cn.housz.what2eat"
+          test ! -f "$APP/embedded.mobileprovision"
+          lipo -archs "$APP/What2Eat" | grep -qw arm64
+
+          # Ad-hoc signature is NOT Apple-authorized and cannot install on a real iPhone.
+          # It only preserves a requested-entitlements template for sideload tools.
+          codesign --force --sign - --timestamp=none \
+            --entitlements What2Eat/What2Eat.entitlements "$APP"
+          codesign --verify --deep --strict "$APP"
+          codesign -d --entitlements :- "$APP" \
+            > "$RUNNER_TEMP/What2Eat-requested-entitlements.plist" 2>/dev/null
+          plutil -p "$RUNNER_TEMP/What2Eat-requested-entitlements.plist" \
+            | grep -F 'com.apple.developer.healthkit'
+          echo "IMPORTANT: Requested HealthKit entitlement is NOT a valid Apple provisioning grant."
+
+          mkdir -p "$RUNNER_TEMP/sideload-ipa/Payload"
+          ditto "$APP" "$RUNNER_TEMP/sideload-ipa/Payload/What2Eat.app"
+          (cd "$RUNNER_TEMP/sideload-ipa" && zip -qry "$GITHUB_WORKSPACE/What2Eat-re-sign-on-Windows.ipa" Payload)
+          unzip -tq What2Eat-re-sign-on-Windows.ipa
+      - name: Upload Windows sideload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: What2Eat-Windows-sideload
+          path: What2Eat-re-sign-on-Windows.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload build logs if failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: |
+            xcodebuild.log
+            xcodebuild-device.log
+          if-no-files-found: ignore
