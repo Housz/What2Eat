@@ -1,4 +1,4 @@
-name: iOS build & core tests
+name: iOS build, tests & unsigned device IPA
 on:
   push:
     branches: [main, 'feat/**']
@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-and-test:
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
@@ -35,10 +35,46 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build | tee xcodebuild.log
-      - name: Upload build log if failed
+      - name: Build unsigned iPhone application
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project What2Eat.xcodeproj \
+            -scheme What2Eat \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/What2EatDevice" \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee xcodebuild-device.log
+      - name: Assemble unsigned IPA for Windows Sideloadly
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/What2EatDevice/Build/Products/Debug-iphoneos/What2Eat.app"
+          test -d "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "cn.housz.what2eat"
+          test ! -f "$APP/embedded.mobileprovision"
+          lipo -archs "$APP/What2Eat"
+          mkdir -p "$RUNNER_TEMP/unsigned-ipa/Payload"
+          ditto "$APP" "$RUNNER_TEMP/unsigned-ipa/Payload/What2Eat.app"
+          (cd "$RUNNER_TEMP/unsigned-ipa" && zip -qry "$GITHUB_WORKSPACE/What2Eat-unsigned-iphoneos.ipa" Payload)
+          unzip -tq What2Eat-unsigned-iphoneos.ipa
+          echo "This unsigned device build is NOT an installable signed IPA."
+          echo "Use Sideloadly or AltStore to re-sign with an Apple account; HealthKit entitlement may be unsupported."
+      - name: Upload unsigned iPhone IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: What2Eat-unsigned-iPhone
+          path: What2Eat-unsigned-iphoneos.ipa
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload build logs if failed
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: xcodebuild-log
-          path: xcodebuild.log
+          path: |
+            xcodebuild.log
+            xcodebuild-device.log
           if-no-files-found: ignore
