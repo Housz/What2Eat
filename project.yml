@@ -1,0 +1,40 @@
+name: What2Eat
+options:
+  deploymentTarget:
+    iOS: '17.0'
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    TARGETED_DEVICE_FAMILY: '1'
+packages:
+  CalorieCore:
+    path: packages/CalorieCore
+targets:
+  What2Eat:
+    type: application
+    platform: iOS
+    sources:
+      - What2Eat
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cn.housz.what2eat
+        MARKETING_VERSION: '0.1.0'
+        CURRENT_PROJECT_VERSION: '1'
+        SWIFT_EMIT_LOC_STRINGS: YES
+    info:
+      path: What2Eat/Info.generated.plist
+      properties:
+        CFBundleDisplayName: What2Eat
+        UILaunchScreen: {}
+        NSHealthShareUsageDescription: 用于读取你的饮食热量、消耗和体重，展示每日摄入预算。
+        NSHealthUpdateUsageDescription: 仅在你明确确认后，将本餐热量写入苹果健康。
+    entitlements:
+      path: What2Eat/What2Eat.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+    dependencies:
+      - package: CalorieCore
+    scheme:
+      testTargets: []
