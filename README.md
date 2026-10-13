@@ -16,7 +16,7 @@
 ## 编译与测试
 
 - 核心 Swift 单测：`swift test --package-path packages/CalorieCore`。
-- 无 Mac：GitHub Actions macOS 运行器同时执行 `xcodebuild -sdk iphonesimulator` 和 `-sdk iphoneos` 的无签名编译；生成的 **What2Eat-unsigned-iphoneos.ipa** 可下载后用 Windows 的 Sideloadly 重签安装，但不能直接安装，也不能保证免费签名授予 HealthKit 权限。
+- 无 Mac：GitHub Actions macOS 运行器同时执行 `xcodebuild -sdk iphonesimulator` 和 `-sdk iphoneos` 的无签名编译；生成的 **What2Eat-re-sign-on-Windows.ipa**（临时 ad-hoc 签名，仅用于保留能力请求）可下载后用 Windows 的 Sideloadly 重签安装，但不能直接安装，也不能保证免费签名授予 HealthKit 权限。
 - [Windows 免费侧载与 HealthKit 权限验证手册](docs/windows-free-sideload.md)：包含下载安装到验收的具体步骤。
 - HealthKit 读写必须在具备合适签名和授权的 iPhone 上进行真实验证。TestFlight 分发需要 Apple Developer Program 会员资格。
 
